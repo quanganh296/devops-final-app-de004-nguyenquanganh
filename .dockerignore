@@ -1,0 +1,24 @@
+# Build output & cache Gradle
+build/
+.gradle/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.log
+
+# Không đưa vào build context: git, CI, hạ tầng, thông tin bí mật, minh chứng
+.git
+.github/
+.gitignore
+Dockerfile
+.dockerignore
+docker-compose.yml
+student.env
+nginx/
+database/
+screenshots/
+submission-content/
+*.md

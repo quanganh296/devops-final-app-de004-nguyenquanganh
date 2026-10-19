@@ -1,0 +1,136 @@
+# =============================================================================
+#  .github/workflows/ci-cd.yml - FILE KHUNG
+#  - Các bước không có TODO: ĐÃ VIẾT SẴN, không cần sửa.
+#  - Sinh viên điền các ô ______ tại các dòng TODO 1-6.
+#  - job build : kiểm tra student.env -> build & chạy thử -> smoke test -> push image GHCR
+#  - job deploy: SSH vào server -> cập nhật mã nguồn -> pull image -> khởi động lại
+# =============================================================================
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Kiểm tra thông tin trong student.env
+        run: |
+          set -a; source student.env; set +a
+          for v in STUDENT_NAME STUDENT_ID STUDENT_CLASS STUDENT_EMAIL GITHUB_USERNAME \
+                   APP_PORT COMPOSE_PROJECT_NAME MYSQL_USER MYSQL_PASSWORD MYSQL_ROOT_PASSWORD; do
+            if [ -z "${!v}" ]; then
+              echo "::error file=student.env::Chưa điền $v trong student.env"
+              exit 1
+            fi
+          done
+          if [ "$EXAM_CODE" != "004" ] || [ "$MYSQL_DATABASE" != "ptit_inventory_db" ]; then
+            echo "::error file=student.env::Không được sửa EXAM_CODE và MYSQL_DATABASE"
+            exit 1
+          fi
+          if [ "$APP_PORT" -lt 8080 ]; then
+            echo "::error file=student.env::APP_PORT phải từ 8080 trở lên"
+            exit 1
+          fi
+          echo "### Sinh viên: $STUDENT_NAME - $STUDENT_ID - $STUDENT_CLASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Đặt tên image
+        id: meta
+        run: echo "image=${REGISTRY}/${GITHUB_REPOSITORY,,}/app" >> "$GITHUB_OUTPUT"
+
+      - name: Build & chạy thử bằng Docker Compose
+        env:
+          APP_IMAGE: ${{ steps.meta.outputs.image }}
+          APP_TAG: ${{ github.sha }}
+          APP_VERSION: ${{ github.sha }}
+        # TODO 1: build và khởi động toàn bộ hệ thống bằng Docker Compose (đọc student.env),
+        #         chờ các service sẵn sàng (gợi ý: --wait --wait-timeout 300)
+        run: ______
+
+      - name: Smoke test
+        run: |
+          set -a; source student.env; set +a
+          BASE="http://localhost:${APP_PORT}"
+          # Kiểm tra endpoint $BASE/api/items trả về JSON (CÓ SẴN, lỗi -> pipeline FAIL)
+          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "$BASE/api/items" | grep -q '"id"'
+          echo "Smoke test OK"
+
+      - name: In log khi lỗi
+        if: failure()
+        run: docker compose --env-file student.env logs --no-color
+
+      # TODO 2: đăng nhập GHCR bằng tài khoản github.actor và secrets.GITHUB_TOKEN
+      - name: Đăng nhập GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ______
+          password: ______
+
+      - name: Push image lên GHCR
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+        # TODO 3: push image với 2 tag: commit SHA (github.sha) và latest
+        run: |
+          ______
+          ______
+          ______
+
+      - name: Dọn dẹp
+        if: always()
+        run: docker compose --env-file student.env down -v
+
+  deploy:
+    name: Deploy lên server
+    # TODO 4: chỉ chạy khi job build thành công
+    needs: ______
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Deploy qua SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_IMAGE: ${{ needs.build.outputs.image }}
+          APP_TAG: ${{ github.sha }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          DEPLOY_DIR: ${{ github.event.repository.name }}
+        with:
+          # TODO 5: kết nối bằng các GitHub Secrets SERVER_HOST, SERVER_USER, SERVER_SSH_KEY
+          host: ______
+          username: ______
+          key: ______
+          envs: APP_IMAGE,APP_TAG,GHCR_USER,GHCR_TOKEN,REPO_URL,DEPLOY_DIR
+          script: |
+            set -e
+            if [ ! -d "$HOME/$DEPLOY_DIR/.git" ]; then
+              git clone "$REPO_URL" "$HOME/$DEPLOY_DIR"
+            fi
+            cd "$HOME/$DEPLOY_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            export APP_IMAGE APP_TAG
+            # TODO 6: kéo image mới của service app về, rồi khởi động lại hệ thống
+            #         KHÔNG build trên server (gợi ý: pull app, up -d --no-build)
+            ______
+            ______
+            docker logout ghcr.io
+            docker compose --env-file student.env ps

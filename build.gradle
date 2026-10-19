@@ -1,0 +1,38 @@
+// =============================================================================
+//  build.gradle - Spring Boot 4 (Java 21) - CÓ SẴN
+//  Build:  gradle bootJar -x test   ->  build/libs/app.jar
+// =============================================================================
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.ptit.devops'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+}
+
+// File JAR sau khi build: build/libs/app.jar
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}
+
+// Không sinh thêm file *-plain.jar
+tasks.named('jar') {
+    enabled = false
+}

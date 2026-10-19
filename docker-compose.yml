@@ -1,0 +1,83 @@
+# =============================================================================
+#  docker-compose.yml - FILE KHUNG
+#  - Service "mysql", networks, volumes: ĐÃ CẤU HÌNH SẴN, không cần sửa.
+#  - Hệ thống chỉ gồm backend Spring Boot (trả JSON), Nginx làm reverse proxy, MySQL.
+#  - Mạng: proxy-net (nginx <-> app), db-net (app <-> mysql); MySQL KHÔNG publish cổng.
+#  - Sinh viên điền các ô ______ tại các dòng TODO trong service "app" và "nginx".
+#  - Chạy:  docker compose --env-file student.env up -d --build
+# =============================================================================
+name: ${COMPOSE_PROJECT_NAME:?Chua dien COMPOSE_PROJECT_NAME trong student.env}
+
+services:
+  # ---------------------------------------------------------------- MySQL (CÓ SẴN)
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - db-net
+
+  # ---------------------------------------------------------------- Spring Boot
+  app:
+    # TODO 1: build image từ thư mục gốc của repository (chứa Dockerfile, build.gradle, src/),
+    #         truyền build-arg APP_VERSION (giá trị lấy từ biến APP_VERSION, mặc định "local")
+    build:
+      context: ______
+      args:
+        APP_VERSION: ______
+    # TODO 2: tên image = <APP_IMAGE>:<APP_TAG>
+    #         (mặc định APP_IMAGE=devops-final-app, APP_TAG=latest)
+    image: ______
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      # TODO 3: lấy tên database, tài khoản, mật khẩu MySQL từ student.env (không ghi cứng)
+      DB_NAME: ______
+      DB_USER: ______
+      DB_PASSWORD: ______
+      TZ: Asia/Ho_Chi_Minh
+    # Chỉ khởi động app khi service mysql đã ở trạng thái healthy (CÓ SẴN)
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - db-net
+      - proxy-net
+
+  # ---------------------------------------------------------------- Nginx (reverse proxy)
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    # TODO 4: publish cổng cá nhân APP_PORT (trong student.env) ra cổng 80 của container
+    ports:
+      - "______:80"
+    # TODO 5: mount (read-only)  nginx/default.conf -> /etc/nginx/conf.d/default.conf
+    volumes:
+      - ______
+    depends_on:
+      - app
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+  db-net:
+
+volumes:
+  mysql_data:
