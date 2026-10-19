@@ -78,8 +78,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ______
-          password: ______
+          username: github.actor
+          password: secrets.GITHUB_TOKEN
 
       - name: Push image lên GHCR
         env:
