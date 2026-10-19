@@ -32,7 +32,7 @@ WORKDIR /app
 RUN addgroup -S spring && adduser -S spring -G spring
 # Chỉ lấy file JAR từ stage build
 COPY --from=build /app/build/libs /app/app.jar
-USER ______
+USER quanganh296
 
 EXPOSE 8099
 
